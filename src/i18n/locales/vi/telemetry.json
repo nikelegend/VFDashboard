@@ -19,7 +19,7 @@
   "_groups": "Nhãn nhóm",
   "groups": {
     "battery_main": "Pin cao áp (HV)",
-    "battery_12v": "Pin 12V (LV)",
+    "battery_12v": "Ắc quy 12V (LV)",
     "charging": "Trạng thái sạc",
     "vehicle_general": "Trạng thái xe",
     "tires": "Áp suất lốp (TPMS)",

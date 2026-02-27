@@ -72,5 +72,9 @@
   "previousVehicle": "Xe trước",
   "nextVehicle": "Xe tiếp theo",
   "fan": "Quạt",
-  "off": "Tắt"
+  "off": "Tắt",
+  "statusNormal": "Bình thường",
+  "statusWarning": "Cảnh báo",
+  "windowClosed": "Đã đóng",
+  "noData": "Không có dữ liệu"
 }

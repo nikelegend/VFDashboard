@@ -23,8 +23,8 @@ export default function SystemHealth() {
 
     if (!tire_pressure_fl && !tire_pressure_fr)
       return {
-        status: "No Data",
-        detail: "No tire pressure data available",
+        status: t("vehicle:noData"),
+        detail: t("vehicle:noTirePressureData"),
         color: "text-gray-400",
         bg: "bg-gray-100",
         iconColor: "text-gray-400",
@@ -42,14 +42,14 @@ export default function SystemHealth() {
 
     if (lowTires.length > 0)
       return {
-        status: "Low Pressure",
+        status: t("vehicle:lowPressure"),
         detail: detailText,
         color: "text-red-700",
         bg: "bg-red-50",
         iconColor: "text-red-500",
       };
     return {
-      status: "All OK",
+      status: t("vehicle:allOk"),
       detail: detailText,
       color: "text-emerald-700",
       bg: "bg-emerald-50",
@@ -72,7 +72,7 @@ export default function SystemHealth() {
     ) {
       return {
         status: "--",
-        detail: "No door status data",
+        detail: t("vehicle:noDoorData"),
         color: "text-gray-400",
         bg: "bg-gray-100",
         iconColor: "text-gray-400",
@@ -89,15 +89,15 @@ export default function SystemHealth() {
 
     if (openDoors.length > 0)
       return {
-        status: `${openDoors.length} Open`,
-        detail: `${openDoors.join(", ")} is open`,
+        status: `${openDoors.length} ${t("vehicle:xOpen")}`,
+        detail: `${openDoors.join(", ")} ${t("vehicle:isOpen")}`,
         color: "text-amber-700",
         bg: "bg-amber-50",
         iconColor: "text-amber-500",
       };
     return {
-      status: "All Closed",
-      detail: "All doors, hood, and trunk are closed",
+      status: t("vehicle:allClosed"),
+      detail: t("vehicle:allClosedDesc"),
       color: "text-emerald-700",
       bg: "bg-emerald-50",
       iconColor: "text-emerald-500",
@@ -108,7 +108,7 @@ export default function SystemHealth() {
     if (data.thermal_warning === undefined || data.thermal_warning === null) {
       return {
         status: "--",
-        detail: "No safety data",
+        detail: t("vehicle:noSafetyData"),
         color: "text-gray-400",
         bg: "bg-gray-100",
         iconColor: "text-gray-400",
@@ -117,16 +117,16 @@ export default function SystemHealth() {
 
     if (Number(data.thermal_warning) === 1) {
       return {
-        status: "Warning",
-        detail: "Thermal Runaway Warning Active",
+        status: t("vehicle:statusWarning"),
+        detail: t("vehicle:thermalWarning"),
         color: "text-red-700",
         bg: "bg-red-50",
         iconColor: "text-red-600",
       };
     }
     return {
-      status: "Normal",
-      detail: "System Normal (No Thermal Warning)",
+      status: t("vehicle:statusNormal"),
+      detail: t("vehicle:systemNormal"),
       color: "text-emerald-700",
       bg: "bg-emerald-50",
       iconColor: "text-emerald-500",
@@ -137,7 +137,7 @@ export default function SystemHealth() {
     if (data.service_alert === undefined || data.service_alert === null) {
       return {
         status: "--",
-        detail: "No service data",
+        detail: t("vehicle:noServiceData"),
         color: "text-gray-400",
         bg: "bg-gray-100",
         iconColor: "text-gray-400",
@@ -165,9 +165,9 @@ export default function SystemHealth() {
 
     if (data.service_alert && data.service_alert != 0) {
       return {
-        status: "Due",
+        status: t("vehicle:serviceDue"),
         detail:
-          `Service is due. ${mileageInfo} ${dateInfo} ${extraInfo}`.trim(),
+          `${t("vehicle:serviceDueDesc")} ${mileageInfo} ${dateInfo} ${extraInfo}`.trim(),
         color: "text-blue-700",
         bg: "bg-blue-50",
         iconColor: "text-blue-500",
@@ -177,10 +177,10 @@ export default function SystemHealth() {
     const hasServiceData = mileageInfo || dateInfo || extraInfo;
 
     return {
-      status: hasServiceData ? "Scheduled" : "No Alerts",
+      status: hasServiceData ? t("vehicle:serviceScheduled") : t("vehicle:noAlerts"),
       detail: hasServiceData
         ? `${mileageInfo} ${dateInfo} ${extraInfo}`.trim()
-        : "No service alerts",
+        : t("vehicle:noServiceAlerts"),
       color: hasServiceData ? "text-blue-600" : "text-gray-500",
       bg: hasServiceData ? "bg-blue-50" : "bg-gray-50",
       iconColor: hasServiceData ? "text-blue-500" : "text-gray-400",
@@ -194,7 +194,7 @@ export default function SystemHealth() {
     if (window_status === undefined || window_status === null) {
       return {
         status: "--",
-        detail: "No window status data",
+        detail: t("vehicle:noWindowData"),
         color: "text-gray-400",
         bg: "bg-gray-100",
         iconColor: "text-gray-400",
@@ -206,16 +206,16 @@ export default function SystemHealth() {
 
     if (isOpen) {
       return {
-        status: "Open",
-        detail: "One or more windows are open",
+        status: t("vehicle:xOpen"),
+        detail: t("vehicle:oneOrMoreWindowsOpen"),
         color: "text-amber-700",
         bg: "bg-amber-50",
         iconColor: "text-amber-500",
       };
     }
     return {
-      status: "Closed",
-      detail: "All windows are closed",
+      status: t("vehicle:windowClosed"),
+      detail: t("vehicle:allWindowsClosed"),
       color: "text-emerald-700",
       bg: "bg-emerald-50",
       iconColor: "text-emerald-500",
@@ -227,7 +227,7 @@ export default function SystemHealth() {
     if (handbrake_status === undefined || handbrake_status === null) {
       return {
         status: "--",
-        detail: "No handbrake data",
+        detail: t("vehicle:noHandbrakeData"),
         color: "text-gray-400",
         bg: "bg-gray-100",
         iconColor: "text-gray-400",
@@ -237,16 +237,16 @@ export default function SystemHealth() {
     // Usually 1 = Engaged
     if (handbrake_status) {
       return {
-        status: "Engaged",
-        detail: "Handbrake is ON",
+        status: t("vehicle:handbrakeEngaged"),
+        detail: t("vehicle:handbrakeOn"),
         color: "text-gray-700",
         bg: "bg-gray-100",
         iconColor: "text-red-500", // Red icon for Handbrake is standard
       };
     }
     return {
-      status: "Released",
-      detail: "Handbrake is OFF",
+      status: t("vehicle:handbrakeReleased"),
+      detail: t("vehicle:handbrakeOff"),
       color: "text-gray-500",
       bg: "bg-gray-50",
       iconColor: "text-gray-400",

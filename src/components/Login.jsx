@@ -156,7 +156,7 @@ export default function Login({ bgImage }) {
                 </div>
                 <label
                   htmlFor="remember-me"
-                  className="ml-2 text-sm font-bold text-gray-500 uppercase tracking-wider"
+                  className="ml-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider"
                 >
                   Remember Me
                 </label>
@@ -164,14 +164,14 @@ export default function Login({ bgImage }) {
 
               {/* Language Selector */}
               <div className="text-sm flex items-center bg-gray-50 px-3 py-1.5 rounded-lg">
-                <label className="font-bold text-gray-500 text-xs uppercase tracking-wider mr-2">
+                <label className="font-bold text-gray-500 text-[10px] uppercase tracking-wider mr-2">
                   {t("common:language")}
                 </label>
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => setLangDropdownOpen(!langDropdownOpen)}
-                    className="flex items-center gap-2 bg-transparent text-gray-900 text-sm font-bold focus:outline-none"
+                    className="flex items-center gap-1 bg-transparent text-gray-900 text-xs font-bold focus:outline-none"
                   >
                     {lang === "vi" ? "🇻🇳 Tiếng Việt" : "🇺🇸 English"}
                     <svg
@@ -217,7 +217,7 @@ export default function Login({ bgImage }) {
                   <button
                     type="button"
                     onClick={() => setRegionDropdownOpen(!regionDropdownOpen)}
-                    className="flex items-center gap-2 bg-transparent text-gray-900 text-sm font-bold focus:outline-none"
+                    className="flex items-center gap-1 bg-transparent text-gray-900 text-xs font-bold focus:outline-none"
                   >
                     {region === "vn"
                       ? t("login:regionVN")

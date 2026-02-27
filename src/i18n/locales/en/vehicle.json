@@ -72,5 +72,9 @@
   "previousVehicle": "Previous Vehicle",
   "nextVehicle": "Next Vehicle",
   "fan": "Fan",
-  "off": "Off"
+  "off": "Off",
+  "statusNormal": "Normal",
+  "statusWarning": "Warning",
+  "windowClosed": "Closed",
+  "noData": "No Data"
 }
