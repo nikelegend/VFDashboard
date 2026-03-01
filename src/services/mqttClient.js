@@ -41,7 +41,11 @@ async function getSignatureKey(key, dateStamp, region, service) {
  * Generate a SigV4-signed WebSocket URL for AWS IoT Core MQTT.
  */
 async function signMqttWebSocketUrl(endpoint, region, credentials) {
-  const expiresIn = 86400; // 24 hours
+  // "iotdevicegateway" is the correct service for MQTT WebSocket connections.
+  // APK logcat showed "iotdata" in reconnect URLs, but those reconnects FAILED.
+  // The APK's initial connection via AWSIotMqttManager uses "iotdevicegateway"
+  // internally for the first successful connect.
+  // Testing confirms: iotdevicegateway=stable connection, iotdata=immediate close.
   const service = "iotdevicegateway";
   const now = new Date();
   const dateStamp = now.toISOString().slice(0, 10).replace(/-/g, "");
@@ -52,16 +56,13 @@ async function signMqttWebSocketUrl(endpoint, region, credentials) {
     "Z";
   const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
 
-  const canonicalQueryParts = [
+  // APK builds params in fixed order, NO X-Amz-Expires, NO sorting.
+  const canonicalQueryString = [
     `X-Amz-Algorithm=AWS4-HMAC-SHA256`,
     `X-Amz-Credential=${encodeURIComponent(credentials.accessKeyId + "/" + credentialScope)}`,
     `X-Amz-Date=${amzDate}`,
-    `X-Amz-Expires=${expiresIn}`,
     `X-Amz-SignedHeaders=host`,
-  ];
-
-  canonicalQueryParts.sort();
-  const canonicalQueryString = canonicalQueryParts.join("&");
+  ].join("&");
 
   const canonicalRequest = [
     "GET",
@@ -132,7 +133,8 @@ export class MqttTelemetryClient {
     this._destroyed = false;
     this._connectToken = 0;
     this._streamListeners = null;
-    this._heartbeatEnabled = false;
+    this._heartbeatEnabled = true;
+    this._lastTboxResponseAt = 0;
   }
 
   async connect(vin) {
@@ -279,10 +281,11 @@ export class MqttTelemetryClient {
     this._destroyed = false;
     this.subscribedVins.add(newVin);
 
-    // If MQTT is already connected, avoid reconnect; just switch topic scope.
-    if (this.client?.connected) {
-      this._setActiveVin(newVin);
-      return;
+    // Client ID = VIN, so switching vehicles MUST reconnect to update client ID.
+    if (this.client?.connected && this.vin !== newVin) {
+      console.log(`[MQTT] VIN changed ${this.vin} → ${newVin}, reconnecting`);
+      this._cleanup(false);
+      this._destroyed = false;
     }
 
     await this.connect(newVin);
@@ -313,6 +316,18 @@ export class MqttTelemetryClient {
     }
 
     const data = await response.json();
+
+    // Diagnostics: log token type, attach-policy result + Cognito identity
+    const isIdToken = data.tokenType === "id_token";
+    console.log(
+      `%c[MQTT Creds] token: ${data.tokenType || "?"} | identity: ${data.identityId || "?"}`,
+      isIdToken ? "color:#8b5cf6;font-weight:bold" : "color:#f59e0b;font-weight:bold",
+    );
+    console.log(
+      `%c[MQTT Creds] policyAttached: ${data.policyAttached} — ${data.policyMessage || "no message"}`,
+      data.policyAttached ? "color:#10b981;font-weight:bold" : "color:#ef4444;font-weight:bold",
+    );
+
     if (data?.status === 412 || data?.policyAttached === false) {
       throw new Error(
         `MQTT policy attachment failed: ${data.policyMessage || "unknown"}`,
@@ -350,12 +365,27 @@ export class MqttTelemetryClient {
       mqttConfig.region,
       this.credentials,
     );
+    // Client ID must match APK pattern: "Android_{VIN}_{20-char-random}"
+    // IoT Core policy uses iot:ClientId condition — "Android_" prefix is REQUIRED
+    // for publish permissions on heartbeat topic. Without it, PUBACK is sent but
+    // the message is silently dropped (no telemetry trigger).
+    // APK source: TextUtils.s(vinCode, 20) → "Android_" + vinCode + "_" + random(20)
+    // Random chars: "0123456789qwertyuiopasdfghjklzxcvbnm" (lowercase alphanumeric)
     const safeVin = vin || "vehicle";
-    const clientId = `${safeVin.substring(0, 12)}-${connectToken}`;
+    const CHARS = "0123456789qwertyuiopasdfghjklzxcvbnm";
+    const rand = Array.from({ length: 20 }, () => CHARS[Math.floor(Math.random() * 36)]).join("");
+    const clientId = `Android_${safeVin}_${rand}`;
+    console.log(`%c[MQTT] Client ID: ${clientId}`, "color:#8b5cf6;font-weight:bold");
+
+    // APK sets username = "?SDK=Android&Version={awsSdkVersion}" (AWS IoT metrics).
+    const username = "?SDK=Android&Version=2.81.0";
+
+    console.log(`%c[MQTT] Connecting to ${mqttHost}...`, "color:#8b5cf6");
 
     // Disable auto-reconnect — we handle it manually to support async URL signing.
     this.client = mqtt.connect(url, {
       clientId,
+      username,
       clean: true,
       keepalive: mqttConfig.keepAlive || 300,
       reconnectPeriod: 0,
@@ -363,7 +393,7 @@ export class MqttTelemetryClient {
       protocolVersion: 4,
     });
 
-    const onConnect = () => {
+    const onConnect = async () => {
       if (this._connectToken !== connectToken || this._destroyed) return;
       this._reconnectAttempts = 0;
       console.log(
@@ -371,7 +401,12 @@ export class MqttTelemetryClient {
         mqttHost,
       );
       setMqttStatus("connected");
-      this._restoreSubscriptions();
+
+      // APK order: subscribe → wait SUBACK → heartbeat → T-Box responds ~300ms
+      await this._restoreSubscriptions();
+      if (this._connectToken !== connectToken || this._destroyed) return;
+
+      this._startHeartbeat(this.vin, connectToken);
       if (typeof this.onConnected === "function") {
         console.log(`[MQTT] onConnected callback for ${vin}`);
         this.onConnected(this.vin);
@@ -474,38 +509,48 @@ export class MqttTelemetryClient {
     ];
   }
 
-  _setActiveVin(vin) {
+  async _setActiveVin(vin) {
     if (!vin) return;
 
     const isVinChanged = this.vin !== vin;
     this.vin = vin;
     this.subscribedVins.add(vin);
 
-    this._subscribeForVin(vin);
-    if (isVinChanged && typeof this.onConnected === "function") {
-      this.onConnected(vin);
+    await this._subscribeForVin(vin);
+
+    if (isVinChanged) {
+      // Restart heartbeat for new VIN
+      this._startHeartbeat(vin, this._connectToken);
+      if (typeof this.onConnected === "function") {
+        this.onConnected(vin);
+      }
     }
   }
 
   _subscribeForVin(vin, { force = false } = {}) {
-    if (!this.client) return;
+    if (!this.client) return Promise.resolve();
 
-    this._getTopics(vin).forEach((topic) => {
-      if (!force && this.subscribedTopics.has(topic)) return;
+    const promises = this._getTopics(vin).map((topic) => {
+      if (!force && this.subscribedTopics.has(topic)) return Promise.resolve();
 
-      this.client.subscribe(topic, { qos: 1 }, (err) => {
-        if (err) {
-          console.error(`[MQTT] Subscribe failed for ${topic}:`, err);
-        } else {
-          console.log(`[MQTT] Subscribed to ${topic}`);
-          this.subscribedTopics.add(topic);
-        }
+      return new Promise((resolve) => {
+        this.client.subscribe(topic, { qos: 1 }, (err) => {
+          if (err) {
+            console.error(`[MQTT] Subscribe failed for ${topic}:`, err);
+          } else {
+            console.log(`[MQTT] Subscribed to ${topic}`);
+            this.subscribedTopics.add(topic);
+          }
+          resolve(); // resolve even on error — don't block heartbeat
+        });
       });
     });
+
+    return Promise.all(promises);
   }
 
   _restoreSubscriptions() {
-    if (!this.client) return;
+    if (!this.client) return Promise.resolve();
 
     // Clean session is on, so subscriptions are reset when reconnecting.
     this.subscribedTopics.clear();
@@ -514,9 +559,12 @@ export class MqttTelemetryClient {
       this.subscribedVins.add(this.vin);
     }
 
+    const promises = [];
     this.subscribedVins.forEach((vin) => {
-      this._subscribeForVin(vin, { force: true });
+      promises.push(this._subscribeForVin(vin, { force: true }));
     });
+
+    return Promise.all(promises);
   }
 
   _unsubscribe(vin) {
@@ -531,6 +579,40 @@ export class MqttTelemetryClient {
     });
   }
 
+  _publishHeartbeat(vin, state) {
+    if (this._destroyed || !this.client || !this.client.connected) {
+      return false;
+    }
+
+    const stateLabel = state === 2 ? "CONNECTED" : state === 1 ? "ONLINE" : "OFFLINE";
+    const topic = `/vehicles/${vin}/push/connected/heartbeat`;
+    const payload = JSON.stringify({
+      version: "1.2",
+      timestamp: Date.now(),
+      trans_id: crypto.randomUUID(),
+      content: {
+        "34183": { "1": { "54": String(state) } },
+      },
+    });
+
+    this.client.publish(topic, payload, { qos: 1 }, (err) => {
+      if (err) {
+        console.warn(`[MQTT] Heartbeat ${stateLabel} PUBLISH FAILED:`, err?.message || err);
+      } else {
+        console.log(
+          `%c[MQTT] Heartbeat ${stateLabel} PUBACK ✓`,
+          "color:#10b981;font-weight:bold",
+        );
+      }
+    });
+
+    console.log(
+      `%c[MQTT] Heartbeat → ${stateLabel}`,
+      "color:#f59e0b",
+    );
+    return true;
+  }
+
   _startHeartbeat(vin, connectToken) {
     if (!this._heartbeatEnabled) {
       return;
@@ -541,40 +623,42 @@ export class MqttTelemetryClient {
     const interval = mqttConfig.heartbeatInterval || 120000;
     const heartbeatToken = connectToken || this._connectToken;
 
-    const sendHeartbeat = (state) => {
-      if (
-        !this.client ||
-        !this.client.connected ||
-        this._connectToken !== heartbeatToken ||
-        this._destroyed
-      ) {
+    const guard = () =>
+      this.client?.connected &&
+      this._connectToken === heartbeatToken &&
+      !this._destroyed;
+
+    // APK pattern: CONNECTED(2) immediately, then ONLINE(1) every 120s
+    if (guard()) {
+      this._publishHeartbeat(vin, 2);
+    }
+
+    this.heartbeatTimer = setInterval(() => {
+      if (!guard()) {
+        this._stopHeartbeat();
         return;
       }
-
-      const topic = `/vehicles/${vin}/push/connected/heartbeat`;
-      const payload = JSON.stringify({
-        version: "1.2",
-        timestamp: Date.now(),
-        trans_id: crypto.randomUUID(),
-        content: {
-          "34183": { "1": { "54": String(state) } },
-        },
-      });
-
-      this.client.publish(topic, payload, { qos: 0 }, (err) => {
-        if (!err) return;
-        console.warn("[MQTT] Heartbeat publish failed:", err?.message || err);
-        this._stopHeartbeat();
-        this._scheduleReconnect();
-      });
-    };
-
-    sendHeartbeat(2);
-    let toggle = false;
-    this.heartbeatTimer = setInterval(() => {
-      toggle = !toggle;
-      sendHeartbeat(toggle ? 1 : 2);
+      this._publishHeartbeat(vin, 1);
     }, interval);
+  }
+
+  /**
+   * APK's observeTBoxOnline: when TBox pings with ONLINE state,
+   * respond with ONLINE heartbeat. Debounced to avoid spam.
+   */
+  _respondToTboxOnline() {
+    if (!this._heartbeatEnabled || !this.vin) return;
+
+    const now = Date.now();
+    const COOLDOWN = 30000; // 30s min between TBox responses
+    if (now - this._lastTboxResponseAt < COOLDOWN) return;
+
+    this._lastTboxResponseAt = now;
+    console.log(
+      "%c[MQTT] TBox ONLINE ping detected — responding",
+      "color:#22c55e",
+    );
+    this._publishHeartbeat(this.vin, 1);
   }
 
   _stopHeartbeat() {
@@ -665,9 +749,39 @@ export class MqttTelemetryClient {
         .filter(Boolean);
       if (telemetryMessages.length === 0) return;
 
+      // Debug: log all incoming deviceKeys to identify what data is arriving
+      const keysSummary = telemetryMessages.map(m => {
+        const dk = m.deviceKey || "?";
+        const v = m.value !== undefined ? String(m.value).substring(0, 30) : "?";
+        return `${dk}=${v}`;
+      });
+      const objectIds = [...new Set(telemetryMessages.map(m => (m.deviceKey || "").split("_")[0]))];
+      console.log(
+        `%c[MQTT] ${telemetryMessages.length} msgs on ${topic} | objects: [${objectIds.join(",")}]`,
+        objectIds.includes("34183") ? "color:#22c55e;font-weight:bold" : "color:#94a3b8",
+        "\n", keysSummary.join(" | "),
+      );
+
+      // APK: observeTBoxOnline — detect TBox ONLINE on resource 55 (not 54)
+      // Parse oid/iid/rid dynamically instead of hardcoding format variations.
+      for (const m of telemetryMessages) {
+        const dk = m.deviceKey || "";
+        const [oid, , rid] = dk.split(/[_/]/).map((x) => parseInt(x, 10));
+        if (oid === 34183 && rid === 55 && String(m.value) === "1") {
+          this._respondToTboxOnline();
+          break;
+        }
+      }
+
       recordMqttMessage();
 
       const parsed = parseTelemetry(telemetryMessages, this.pathToAlias);
+
+      // Debug: log parsed telemetry keys
+      const parsedKeys = Object.keys(parsed).filter(k => parsed[k] !== undefined && parsed[k] !== null);
+      if (parsedKeys.length > 0) {
+        console.log(`%c[MQTT] Parsed → ${parsedKeys.join(", ")}`, "color:#3b82f6;font-weight:bold");
+      }
 
       if (this.onTelemetryUpdate) {
         this.onTelemetryUpdate(this.vin, parsed, telemetryMessages);

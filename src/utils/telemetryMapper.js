@@ -85,6 +85,47 @@ export const TELEMETRY_KEY_MAP = {
 
   VEHICLE_STATUS_CENTRAL_LOCK_STATUS: "central_lock_status",
 
+  // 5.3 Windows (per-door ajar status from object 34215)
+  WINDOW_AJAR_FRONT_LEFT_STATUS: "window_fl",
+  WINDOW_AJAR_FRONT_RIGHT_STATUS: "window_fr",
+  WINDOW_AJAR_REAR_LEFT_STATUS: "window_rl",
+  WINDOW_AJAR_REAR_RIGHT_STATUS: "window_rr",
+  WINDOW_SUNSHADE_STATUS: "sunroof_status",
+
+  // 5.4 Charging Details (from object 34193)
+  CHARGING_STATUS_AC_CHARGING_GUN_STATUS: "ac_charging_gun",
+  CHARGING_STATUS_DC_CHARGING_GUN_STATUS: "dc_charging_gun",
+  CHARGING_STATUS_CHARGE_LID_STATUS: "charge_lid_status",
+  CHARGING_STATUS_TARGET_SOC_CONTROL: "target_soc_actual",
+  CHARGE_CONTROL_PEAK_OFF_HOUR_START: "charge_schedule_start",
+  CHARGE_CONTROL_PEAK_OFF_HOUR_END: "charge_schedule_end",
+  CHARGE_CONTROL_CURRENT_DEPARTURE_TIME: "departure_time",
+  CHARGE_CONTROL_ENABLE_PEAK_OFF_HOUR: "peak_off_hour_enabled",
+
+  // 5.5 Climate Control (from object 34199)
+  CLIMATE_CONTROL_AC_CONTROL_STATUS: "ac_status",
+  CLIMATE_SCHEDULE_SET_DRIVER_TEMPERATURE: "climate_set_driver_temp",
+  CLIMATE_SCHEDULE_SET_PASSENGER_TEMPERATURE: "climate_set_passenger_temp",
+
+  // 5.6 Remote Control Status (from object 34213)
+  REMOTE_CONTROL_TRUNK_STATUS: "remote_trunk_status",
+  REMOTE_CONTROL_LIGHT_STATUS: "remote_light_status",
+  REMOTE_CONTROL_HORN_STATUS: "remote_horn_status",
+
+  // 5.7 Warnings (from object 34186)
+  VEHICLE_WARNINGS_FRONT_LEFT_TIRE_PRESSURE_LOW_STATUS: "tire_warn_fl",
+  VEHICLE_WARNINGS_FRONT_RIGHT_TIRE_PRESSURE_LOW_STATUS: "tire_warn_fr",
+  VEHICLE_WARNINGS_REAR_LEFT_TIRE_PRESSURE_LOW_STATUS: "tire_warn_rl",
+  VEHICLE_WARNINGS_REAR_RIGHT_TIRE_PRESSURE_LOW_STATUS: "tire_warn_rr",
+  VEHICLE_WARNINGS_HV_BATTERY_LOW_SOC_WARNING_STATUS: "low_battery_warn",
+
+  // 5.8 Battery Leasing (from object 34210)
+  BATTERY_LEASING_INFO_CURRENT_LIMITED_SOC: "lease_soc_limit",
+
+  // 5.9 Security
+  INTRUSION_STATUS: "intrusion_status",
+  IMMOBILIZATION_STATUS: "immobilization_status",
+
   // System Health / Vehicle Status
   FIRMWARE_UPDATE_CURRENT_PKG_VERSION: "firmware_version",
   VERSION_INFO_TBOX_SOFTWARE_VERSION: "tbox_version",

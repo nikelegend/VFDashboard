@@ -5,12 +5,109 @@ import {
   fetchVehicles,
   vehicleStore,
   updateFromMqtt,
+  refreshVehicle,
 } from "../stores/vehicleStore";
 import { fetchChargingSessions } from "../stores/chargingHistoryStore";
 import { getMqttClient, destroyMqttClient } from "../services/mqttClient";
 import { mqttStore } from "../stores/mqttStore";
-import { CORE_TELEMETRY_ALIASES } from "../config/vinfast";
-import staticAliasMap from "../config/static_alias_map.json";
+
+/**
+ * APK ScreenResources.Home — 90 resources the Home screen requests.
+ * Extracted from decompiled ScreenResources.java static initializer.
+ * APK sends ONLY these to list_resource, not all 2040 from the alias map.
+ */
+const HOME_RESOURCES = [
+  { objectId: "34229", instanceId: "1", resourceId: "6" },
+  { objectId: "34229", instanceId: "1", resourceId: "5" },
+  { objectId: "34229", instanceId: "1", resourceId: "3" },
+  { objectId: "34229", instanceId: "1", resourceId: "4" },
+  { objectId: "34229", instanceId: "1", resourceId: "2" },
+  { objectId: "34230", instanceId: "1", resourceId: "1" },
+  { objectId: "34230", instanceId: "1", resourceId: "4" },
+  { objectId: "34220", instanceId: "1", resourceId: "116" },
+  { objectId: "34206", instanceId: "1", resourceId: "1" },
+  { objectId: "34214", instanceId: "1", resourceId: "3" },
+  { objectId: "34214", instanceId: "1", resourceId: "4" },
+  { objectId: "34214", instanceId: "1", resourceId: "5" },
+  { objectId: "56789", instanceId: "1", resourceId: "1" },
+  { objectId: "56789", instanceId: "1", resourceId: "103" },
+  { objectId: "56789", instanceId: "1", resourceId: "9" },
+  { objectId: "34193", instanceId: "1", resourceId: "24" },
+  { objectId: "34193", instanceId: "1", resourceId: "19" },
+  { objectId: "34193", instanceId: "1", resourceId: "22" },
+  { objectId: "34193", instanceId: "1", resourceId: "21" },
+  { objectId: "34193", instanceId: "1", resourceId: "37" },
+  { objectId: "34193", instanceId: "1", resourceId: "30" },
+  { objectId: "34193", instanceId: "1", resourceId: "10" },
+  { objectId: "34193", instanceId: "1", resourceId: "7" },
+  { objectId: "34193", instanceId: "1", resourceId: "5" },
+  { objectId: "34193", instanceId: "1", resourceId: "17" },
+  { objectId: "34184", instanceId: "1", resourceId: "42" },
+  { objectId: "34184", instanceId: "1", resourceId: "25" },
+  { objectId: "34184", instanceId: "1", resourceId: "6" },
+  { objectId: "34184", instanceId: "1", resourceId: "9" },
+  { objectId: "34224", instanceId: "1", resourceId: "2" },
+  { objectId: "34224", instanceId: "1", resourceId: "3" },
+  { objectId: "34224", instanceId: "1", resourceId: "11" },
+  { objectId: "34224", instanceId: "1", resourceId: "7" },
+  { objectId: "34224", instanceId: "1", resourceId: "5" },
+  { objectId: "34224", instanceId: "1", resourceId: "4" },
+  { objectId: "34224", instanceId: "1", resourceId: "6" },
+  { objectId: "34224", instanceId: "1", resourceId: "12" },
+  { objectId: "34232", instanceId: "1", resourceId: "1" },
+  { objectId: "10351", instanceId: "2", resourceId: "50" },
+  { objectId: "10351", instanceId: "1", resourceId: "50" },
+  { objectId: "10351", instanceId: "4", resourceId: "50" },
+  { objectId: "10351", instanceId: "3", resourceId: "50" },
+  { objectId: "10351", instanceId: "6", resourceId: "50" },
+  { objectId: "5", instanceId: "1", resourceId: "30" },
+  { objectId: "5", instanceId: "1", resourceId: "7" },
+  { objectId: "34221", instanceId: "1", resourceId: "1" },
+  { objectId: "34221", instanceId: "1", resourceId: "6" },
+  { objectId: "34221", instanceId: "1", resourceId: "2" },
+  { objectId: "34221", instanceId: "1", resourceId: "3" },
+  { objectId: "34221", instanceId: "1", resourceId: "4" },
+  { objectId: "34221", instanceId: "1", resourceId: "5" },
+  { objectId: "34234", instanceId: "1", resourceId: "3" },
+  { objectId: "34222", instanceId: "1", resourceId: "3" },
+  { objectId: "34207", instanceId: "1", resourceId: "1" },
+  { objectId: "34225", instanceId: "1", resourceId: "6" },
+  { objectId: "34213", instanceId: "7", resourceId: "3" },
+  { objectId: "34213", instanceId: "8", resourceId: "3" },
+  { objectId: "34213", instanceId: "1", resourceId: "3" },
+  { objectId: "34213", instanceId: "5", resourceId: "3" },
+  { objectId: "34213", instanceId: "4", resourceId: "3" },
+  { objectId: "34213", instanceId: "9", resourceId: "3" },
+  { objectId: "34213", instanceId: "6", resourceId: "3" },
+  { objectId: "34213", instanceId: "2", resourceId: "3" },
+  { objectId: "34213", instanceId: "3", resourceId: "3" },
+  { objectId: "34200", instanceId: "6", resourceId: "16" },
+  { objectId: "34205", instanceId: "1", resourceId: "1" },
+  { objectId: "34205", instanceId: "1", resourceId: "3" },
+  { objectId: "34183", instanceId: "1", resourceId: "7" },
+  { objectId: "34183", instanceId: "1", resourceId: "16" },
+  { objectId: "34183", instanceId: "1", resourceId: "20" },
+  { objectId: "34183", instanceId: "1", resourceId: "17" },
+  { objectId: "34183", instanceId: "1", resourceId: "21" },
+  { objectId: "34183", instanceId: "1", resourceId: "29" },
+  { objectId: "34183", instanceId: "1", resourceId: "9" },
+  { objectId: "34183", instanceId: "1", resourceId: "3" },
+  { objectId: "34183", instanceId: "1", resourceId: "18" },
+  { objectId: "34183", instanceId: "1", resourceId: "22" },
+  { objectId: "34183", instanceId: "1", resourceId: "19" },
+  { objectId: "34183", instanceId: "1", resourceId: "23" },
+  { objectId: "34183", instanceId: "1", resourceId: "11" },
+  { objectId: "34183", instanceId: "1", resourceId: "35" },
+  { objectId: "34186", instanceId: "7", resourceId: "4" },
+  { objectId: "34186", instanceId: "1", resourceId: "4" },
+  { objectId: "34186", instanceId: "2", resourceId: "4" },
+  { objectId: "34186", instanceId: "5", resourceId: "4" },
+  { objectId: "34186", instanceId: "3", resourceId: "4" },
+  { objectId: "34186", instanceId: "4", resourceId: "4" },
+  { objectId: "34196", instanceId: "1", resourceId: "4" },
+  { objectId: "34180", instanceId: "1", resourceId: "10" },
+  { objectId: "34181", instanceId: "1", resourceId: "7" },
+];
 
 export default function DashboardController({ vin: initialVin }) {
   const isMounted = useRef(true);
@@ -47,16 +144,61 @@ export default function DashboardController({ vin: initialVin }) {
       // Record connect time for perf measurement
       mqttClient._connectedAt = performance.now();
 
-      // Register core aliases to trigger T-Box data push (1 API call)
-      const coreResources = buildCoreResources();
-      const regStart = performance.now();
-      api.registerResources(connectedVin, coreResources).then(() => {
-        const ms = (performance.now() - regStart).toFixed(0);
-        console.log(
-          `%c[Register] Done in ${ms}ms (${coreResources.length} aliases)`,
-          "color:#3b82f6;font-weight:bold",
-        );
-      });
+      console.log(`[MQTT] Connected for ${connectedVin} — triggering T-Box via wakeup + heartbeat`);
+
+      // APK startup flow after MQTT subscription succeeds:
+      // 1. Heartbeat CONNECTED(2) — already handled by mqttClient._startHeartbeat()
+      // 2. device-trust — register device with VinFast (APK does on startup)
+      // 3. app/wakeup — explicit T-Box wake REST call
+      // 4. list_resource — register telemetry resources
+      // 5. app/ping — keepalive ping
+
+      // Fire-and-forget: don't block MQTT on REST calls
+      (async () => {
+        // Device-trust: APK calls PUT /device-trust/fcm-token on every startup.
+        // This may be required before telemetry endpoints accept requests.
+        try {
+          const trustResult = await api.registerDeviceTrust();
+          console.log(
+            `%c[Trigger] device-trust → ${trustResult.status}`,
+            trustResult.status < 300 ? 'color:#10b981;font-weight:bold' : 'color:#f59e0b;font-weight:bold',
+            trustResult.data,
+          );
+        } catch (e) {
+          console.warn('[Trigger] device-trust error:', e.message);
+        }
+
+        try {
+          const wakeResult = await api.wakeupTBox();
+          console.log(`[Trigger] wakeup → ${wakeResult.status}`);
+        } catch (e) {
+          console.warn('[Trigger] wakeup error:', e.message);
+        }
+
+        // list_resource + app/ping: capture response details for debugging.
+        // These have returned 403 since Feb 2026 — device-trust may fix this.
+        try {
+          const lrResult = await api.listResource(connectedVin, HOME_RESOURCES);
+          console.log(
+            `%c[Trigger] list_resource → ${lrResult.status}`,
+            lrResult.status < 300 ? 'color:#10b981;font-weight:bold' : 'color:#ef4444;font-weight:bold',
+            lrResult,
+          );
+        } catch (e) {
+          console.warn('[Trigger] list_resource error:', e.message);
+        }
+
+        try {
+          const pingResult = await api.appPing(HOME_RESOURCES);
+          console.log(
+            `%c[Trigger] app/ping → ${pingResult.status || '?'}`,
+            'color:#8b5cf6;font-weight:bold',
+            pingResult,
+          );
+        } catch (e) {
+          console.warn('[Trigger] app/ping error:', e.message);
+        }
+      })();
     };
 
     const init = async () => {
@@ -117,27 +259,41 @@ export default function DashboardController({ vin: initialVin }) {
     };
   }, [initialVin]);
 
-  // No REST polling — all telemetry comes from MQTT.
+  // Auto-refresh timer: when showing cached data, auto-trigger refresh after 5 minutes.
+  // This gives users time to see cached data immediately, then seamlessly transitions to live.
+  const cacheTimerRef = useRef(null);
+  const lastDataSourceRef = useRef(null);
 
+  useEffect(() => {
+    const CACHE_AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
+
+    const unsub = vehicleStore.subscribe((state) => {
+      const ds = state.dataSource;
+      if (ds === lastDataSourceRef.current) return;
+      lastDataSourceRef.current = ds;
+
+      // Clear any existing timer
+      if (cacheTimerRef.current) {
+        clearTimeout(cacheTimerRef.current);
+        cacheTimerRef.current = null;
+      }
+
+      // Schedule auto-refresh when data is from cache
+      if (ds === 'cache' && state.vin) {
+        cacheTimerRef.current = setTimeout(() => {
+          const current = vehicleStore.get();
+          if (current.dataSource === 'cache' && current.vin && isMounted.current) {
+            console.log(`[Auto-Refresh] Cache expired for ${current.vin}, triggering refresh`);
+            refreshVehicle(current.vin);
+          }
+        }, CACHE_AUTO_REFRESH_MS);
+      }
+    });
+
+    return () => {
+      unsub();
+      if (cacheTimerRef.current) clearTimeout(cacheTimerRef.current);
+    };
+  }, []);
   return null; // Headless
-}
-
-/**
- * Build core resource list for list_resource registration.
- * Maps ~40 CORE_TELEMETRY_ALIASES → {objectId, instanceId, resourceId}
- * using static_alias_map.json. Single API call triggers T-Box data push.
- */
-function buildCoreResources() {
-  const resources = [];
-  CORE_TELEMETRY_ALIASES.forEach((alias) => {
-    const m = staticAliasMap[alias];
-    if (m) {
-      resources.push({
-        objectId: m.objectId,
-        instanceId: m.instanceId,
-        resourceId: m.resourceId,
-      });
-    }
-  });
-  return resources;
 }
