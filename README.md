@@ -15,6 +15,18 @@
 > - **Các bản build desktop/mobile:** xem tại [**GitHub Releases**](https://github.com/VF9-Club/VFDashboard/releases)
 > - **Cam kết minh bạch:** mọi bản build phát hành đều dựa trên source code public trong repository này.
 >
+> **Tải bản phát hành v1.0.0:**
+>
+> [![Download macOS](<https://img.shields.io/badge/Download-macOS%20(Apple%20Silicon)-111111?style=for-the-badge&logo=apple>)](https://github.com/VF9-Club/VFDashboard/releases/download/v1.0.0/VFDashboard_1.0.0_aarch64.dmg)
+> [![Download Windows](https://img.shields.io/badge/Download-Windows%20x64-0078D6?style=for-the-badge&logo=windows)](https://github.com/VF9-Club/VFDashboard/releases/download/v1.0.0/VFDashboard_1.0.0_x64-setup.exe)
+> [![Download Android](https://img.shields.io/badge/Download-Android%20APK-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/VF9-Club/VFDashboard/releases/download/v1.0.0/VFDashboard_1.0.0_universal.apk)
+>
+> **Checksum (SHA-256):**
+>
+> - `VFDashboard_1.0.0_aarch64.dmg`: `fae13ed53f49094f944d3456f5cd7a46b0dbb7196712e3f9bf00fe542d721d81`
+> - `VFDashboard_1.0.0_x64-setup.exe`: `f1c5f43a1e758c6a7927b97ff5130c73a0b4af207638500d0a2cfb24032e3b96`
+> - `VFDashboard_1.0.0_universal.apk`: `d26714aff611e78e9cbfb362a9b4f4acfdb7b22e68508bc3cd65691d2c5ec7a5`
+>
 > Giao lưu cùng tác giả: [**ANH EM VF9 - VF9 CLUB**](https://www.facebook.com/groups/706124277686588/)
 >
 > _📄 English documentation below._
