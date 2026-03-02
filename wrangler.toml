@@ -5,4 +5,4 @@ compatibility_flags = ["nodejs_compat"]
 
 [[kv_namespaces]]
 binding = "VFDashboard"
-id = "896fd3f998bd4b8f8fbd448cd96293e7"
+id = "99aff008b1124c2aa28081b5c6139403"
